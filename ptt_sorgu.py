@@ -89,12 +89,33 @@ def kargo_bilgilerini_yazdir(data):
     print(f"teslim_durum_aciklama: {sondurum.get('teslim_durum_aciklama')}")
     print(f"teslim_tarihi: {sondurum.get('teslim_tarihi')}")
 def main():
+    import argparse
+    
+    # Argüman okuyucu (GitHub için)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('barkod', nargs='?', help='Barkod No')
+    args = parser.parse_args()
+
     print("PTT Kargo Takip Sistemi")
     print("=" * 30)
     
+    # --- GITHUB MODU (Otomatik) ---
+    if args.barkod:
+        print(f"Otomatik Sorgu: {args.barkod}")
+        kargo_verisi = ptt_kargo_sorgula(args.barkod)
+        if kargo_verisi:
+            kargo_bilgilerini_yazdir(kargo_verisi)
+        else:
+            print("Kargo bilgileri alınamadı!")
+        return
+
+    # --- LOCAL MOD (Elle Giriş) ---
     while True:
-        barkod_no = input("Barkod numarasını girin (çıkmak için 'q'): ").strip()
-        
+        try:
+            barkod_no = input("Barkod numarasını girin (çıkmak için 'q'): ").strip()
+        except EOFError:
+            break
+            
         if barkod_no.lower() == 'q':
             print("Program sonlandırıldı.")
             break
@@ -113,5 +134,6 @@ def main():
             print("Kargo bilgileri alınamadı!")
         
         print("\n" + "=" * 50)
+
 if __name__ == "__main__":
     main()
