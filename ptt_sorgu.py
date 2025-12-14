@@ -174,6 +174,12 @@ def main():
     import argparse
     import sys
     
+    # Windows konsolunda Türkçe karakter sorunu için
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
+    
     # Argüman okuyucu (GitHub için)
     parser = argparse.ArgumentParser()
     parser.add_argument('barkod', nargs='?', help='Barkod No')
