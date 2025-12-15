@@ -122,51 +122,54 @@ def kargo_bilgilerini_yazdir(data):
         return
     
     kargo = data[0]
-    
-    # KABUL VE SON DURUM BİLGİLERİ YAZDIRILMIYOR (Kullanıcı İsteği)
-    
-    # ÖZEL DURUM ANALİZİ
     hareketler = kargo.get('hareketDongu', [])
-    # Başlıkları da kaldırıyoruz sade çıktı için
     
-    found_any_delivery = False # Hiç teslim/iade kelimesi geçti mi?
-    found_special = False      # Özel kodlu teslim/iade var mı?
+    # 1. Adım: Tüm "Özel" (Teslim/İade) hareketlerini topla
+    bulunan_ozel_hareketler = []
     
     for hareket in hareketler:
         aciklama = hareket.get('aciklama', '')
         durum = hareket.get('durum')
-        tarih = hareket.get('tarih')
         
-        # Filtre: Açıklama TESLİM EDİLDİ veya İADE ise
-        if aciklama in ["TESLİM EDİLDİ", "İADE"]:
-            found_any_delivery = True
+        # Filtre: Açıklama TESLİM EDİLDİ veya İADE ise VE standart kod (252, 120) değilse
+        if aciklama in ["TESLİM EDİLDİ", "İADE"] and durum not in [252, 120]:
+            bulunan_ozel_hareketler.append(hareket)
             
-            # VE durum standart (252, 120) değilse detay yaz
-            if durum not in [252, 120]:
-                ozel_aciklama = PTT_DURUM_KODLARI.get(durum, f"Bilinmeyen Kod ({durum})")
-                
-                # Prefix belirle
-                durum_baslik = "Tebliğ Edildi" if aciklama == "TESLİM EDİLDİ" else "İade Edildi"
-                
-                print(f"Durum: {durum_baslik} -- {ozel_aciklama} -- {tarih}")
-                found_special = True
-    
-    # Eğer hiç TESLİM veya İADE yoksa, son durumu yazdır
-    if not found_any_delivery and hareketler:
+    # 2. Adım: Eğer özel hareket bulduysak, en güncel olanı seçip yazdır
+    if bulunan_ozel_hareketler:
+        # Tarihe göre sıralama yapalım (Eskiden yeniye doğru)
+        # PTT tarih formatı genelde "dd/mm/yyyy" şeklindedir
+        try:
+            bulunan_ozel_hareketler.sort(key=lambda x: datetime.strptime(x.get('tarih').split(" ")[0], "%d/%m/%Y"))
+        except (ValueError, IndexError):
+            # Tarih parse edilemezse listenin sonuncusunu al (API sırasına güvenerek)
+            pass
+
+        # Listenin en sonundaki eleman en güncel olandır
+        son_hareket = bulunan_ozel_hareketler[-1]
+        
+        durum = son_hareket.get('durum')
+        tarih = son_hareket.get('tarih')
+        aciklama = son_hareket.get('aciklama', '')
+        
+        ozel_aciklama = PTT_DURUM_KODLARI.get(durum, f"Bilinmeyen Kod ({durum})")
+        durum_baslik = "Tebliğ Edildi" if aciklama == "TESLİM EDİLDİ" else "İade Edildi"
+        
+        print(f"Durum: {durum_baslik} -- {ozel_aciklama} -- {tarih}")
+
+    # 3. Adım: Eğer hiç özel teslim/iade yoksa son durumu yazdır (Fallback)
+    elif hareketler:
         son_hareket = hareketler[-1]
         son_durum_kodu = son_hareket.get('durum')
         son_tarih = son_hareket.get('tarih')
         son_aciklama = son_hareket.get('aciklama', '')
         son_aciklama_detay = PTT_DURUM_KODLARI.get(son_durum_kodu, f"Bilinmeyen Kod ({son_durum_kodu})")
         
-        # Fallback için de benzer format
         durum_baslik = "Tebliğ Edildi" if son_aciklama == "TESLİM EDİLDİ" else ("İade Edildi" if son_aciklama == "İADE" else "Son Durum")
         
         print(f"Durum: {durum_baslik} -- {son_aciklama_detay} -- {son_tarih}")
-                
-    if not found_special and found_any_delivery:
-        print("Standart teslim/iade işlemi.")
-    elif not found_special and not found_any_delivery and not hareketler:
+    
+    else:
         print("Herhangi bir hareket bulunamadı.")
 
 
